@@ -1,0 +1,324 @@
+diff -urNx .svn clean-SDK.UBNT.v5.1/openwrt/package/ucarp/files/ucarp.conf SDK.UBNT.v5.1/openwrt/package/ucarp/files/ucarp.conf
+--- clean-SDK.UBNT.v5.1/openwrt/package/ucarp/files/ucarp.conf	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v5.1/openwrt/package/ucarp/files/ucarp.conf	2010-01-30 15:30:08.000000000 +0100
+@@ -0,0 +1,24 @@
++# Usage for AirOS: 
++# 1) Edit this file and copy it to /etc/persistent/ucarp.conf
++# 2) Run: ucarp.init test
++# 3) Run: cfgmtd -w -p /etc/ && reboot
++
++# Interface to run CARP on
++IF=br0
++
++# Virtual IP shared with the other system
++VIP=10.0.0.117
++
++# Size of the network mask for the virtual IP
++VMASK=24
++
++# Real, static IP of this host
++MYIP=192.168.1.20
++
++# Password shared with the other system
++PASSWORD=love
++
++# IP addresses to arping after taking over the shared IP,
++# you should list all known systems, those not listed can
++# take up to a minute to notice the change.
++PINGIP="10.0.0.1 10.0.0.20"
+diff -urNx .svn clean-SDK.UBNT.v5.1/openwrt/package/ucarp/files/ucarp.init SDK.UBNT.v5.1/openwrt/package/ucarp/files/ucarp.init
+--- clean-SDK.UBNT.v5.1/openwrt/package/ucarp/files/ucarp.init	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v5.1/openwrt/package/ucarp/files/ucarp.init	2010-01-30 15:30:08.000000000 +0100
+@@ -0,0 +1,64 @@
++#!/bin/sh
++
++CONF=/etc/persistent/ucarp.conf
++MODE="$1"
++
++if [ "${MODE}" = "stop" ]
++then
++    echo "Killing them all and letting init sort them out"
++    killall ucarp
++    exit 0
++fi
++
++if [ -f "${CONF}" ]
++then
++   
++   if [ "${MODE}" = "test" ]
++   then
++       daemon=""
++   else
++       echo "Starting UCARP using ${CONF} as a daemon, use test parameter to run in foreground"
++       daemon="--daemonize"
++   fi
++
++   . ${CONF}
++   
++   cat > /var/run/ucarp-vip-up <<EOF
++#!/bin/sh
++
++/bin/ip addr add ${VIP}/${VMASK} dev ${IF}
++
++EOF
++   for ip in ${PINGIP}
++   do
++	cat >> /var/run/ucarp-vip-up <<EOF
++${arping}/bin/arping -c 2 -I ${IF} -s ${VIP} ${ip}
++EOF
++   done
++
++
++   chmod a+x /var/run/ucarp-vip-up
++
++   cat > /var/run/ucarp-vip-down <<EOF
++#!/bin/sh
++
++/bin/ip addr del ${VIP}/${VMASK} dev ${IF}
++
++EOF
++   chmod a+x /var/run/ucarp-vip-down
++
++   /sbin/ucarp --interface=${IF} --srcip=${MYIP} --vhid=1 --pass=${PASSWORD} \
++         --addr=${VIP} --nomcast $daemon \
++         --upscript=/var/run/ucarp-vip-up --downscript=/var/run/ucarp-vip-down
++
++   if [ "${MODE}" = "test" ]
++   then
++       echo "UCARP has exited."
++   else
++       echo "UCARP has been started."
++   fi
++
++else 
++   echo "UCARP is not enabled"
++   exit 0
++fi
+diff -urNx .svn clean-SDK.UBNT.v5.1/openwrt/package/ucarp/Makefile SDK.UBNT.v5.1/openwrt/package/ucarp/Makefile
+--- clean-SDK.UBNT.v5.1/openwrt/package/ucarp/Makefile	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v5.1/openwrt/package/ucarp/Makefile	2010-01-30 15:30:08.000000000 +0100
+@@ -0,0 +1,40 @@
++include $(TOPDIR)/rules.mk
++
++PKG_NAME:=ucarp
++PKG_VERSION:=1.5.1
++PKG_RELEASE:=1
++
++PKG_MD5SUM:=9219ea8214198e8af751353a132087bb
++PKG_SOURCE_URL:=http://download.pureftpd.org/pub/ucarp
++PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
++PKG_CAT:=bzcat
++
++PKG_BUILD_DIR:=$(BUILD_DIR)/$(PKG_NAME)-$(PKG_VERSION)
++PKG_INSTALL_DIR:=$(PKG_BUILD_DIR)/ipkg-install
++
++include $(INCLUDE_DIR)/package.mk
++
++define Package/ucarp
++	SECTION:=net
++	CATEGORY:=Network
++	TITLE:=Lets several hosts share one IP
++	URL:=http://carp.org
++endef
++
++define Package/ucarp/description
++ ucarp allows a couple of hosts to share common virtual IP addresses in order
++ to provide automatic failover. It is a portable userland implementation of the
++ secure and patent-free Common Address Redundancy Protocol
++endef
++
++define Build/Configure
++	$(call Build/Configure/Default, )
++endef
++
++define Package/ucarp/install
++	$(INSTALL_DIR) $(1)/sbin
++	$(INSTALL_BIN) $(PKG_BUILD_DIR)/src/ucarp $(1)/sbin/
++	$(INSTALL_BIN) ./files/ucarp.init $(1)/sbin/
++endef
++
++$(eval $(call BuildPackage,ucarp))
+diff -urNx .svn clean-SDK.UBNT.v5.1/openwrt/package/ucarp/patches/100-configure-cross-compilation.diff SDK.UBNT.v5.1/openwrt/package/ucarp/patches/100-configure-cross-compilation.diff
+--- clean-SDK.UBNT.v5.1/openwrt/package/ucarp/patches/100-configure-cross-compilation.diff	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v5.1/openwrt/package/ucarp/patches/100-configure-cross-compilation.diff	2010-01-30 15:30:08.000000000 +0100
+@@ -0,0 +1,180 @@
++Only in ucarp-1.5.1: autom4te.cache
++diff -ur ucarp-1.5.1.clean/configure ucarp-1.5.1/configure
++--- ucarp-1.5.1.clean/configure	2010-01-30 00:03:55.000000000 +0100
+++++ ucarp-1.5.1/configure	2010-01-30 00:36:06.000000000 +0100
++@@ -30117,174 +30117,11 @@
++ 
++ fi
++ 
++-{ $as_echo "$as_me:$LINENO: checking whether snprintf is C99 conformant" >&5
++-$as_echo_n "checking whether snprintf is C99 conformant... " >&6; }
++-if test "$cross_compiling" = yes; then
++-  { { $as_echo "$as_me:$LINENO: error: cannot run test program while cross compiling
++-See \`config.log' for more details." >&5
++-$as_echo "$as_me: error: cannot run test program while cross compiling
++-See \`config.log' for more details." >&2;}
++-   { (exit 1); exit 1; }; }
++-else
++-  cat >conftest.$ac_ext <<_ACEOF
++-/* confdefs.h.  */
++-_ACEOF
++-cat confdefs.h >>conftest.$ac_ext
++-cat >>conftest.$ac_ext <<_ACEOF
++-/* end confdefs.h.  */
++-
++-#include <stdio.h>
++-#ifdef STDC_HEADERS
++-# include <stdlib.h>
++-# include <stddef.h>
++-#else
++-# if HAVE_STDLIB_H
++-#  include <stdlib.h>
++-# endif
++-#endif
++-#ifdef HAVE_UNISTD_H
++-# include <unistd.h>
++-#endif
++-
++-int main(void)
++-{
++-    char buf[4];
++-
++-    (void) fprintf(fopen("conftestval", "w"), "%d\n",
++-        (int) snprintf(buf, sizeof buf, "12345678"));
++-    return 0;
++-}
++-
++-_ACEOF
++-rm -f conftest$ac_exeext
++-if { (ac_try="$ac_link"
++-case "(($ac_try" in
++-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++-  *) ac_try_echo=$ac_try;;
++-esac
++-eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++-$as_echo "$ac_try_echo") >&5
++-  (eval "$ac_link") 2>&5
++-  ac_status=$?
++-  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++-  (exit $ac_status); } && { ac_try='./conftest$ac_exeext'
++-  { (case "(($ac_try" in
++-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++-  *) ac_try_echo=$ac_try;;
++-esac
++-eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++-$as_echo "$ac_try_echo") >&5
++-  (eval "$ac_try") 2>&5
++-  ac_status=$?
++-  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++-  (exit $ac_status); }; }; then
++-  CONF_SNPRINTF_TYPE=`cat conftestval`
++-
++-else
++-  $as_echo "$as_me: program exited with status $ac_status" >&5
++-$as_echo "$as_me: failed program was:" >&5
++-sed 's/^/| /' conftest.$ac_ext >&5
++-
++-fi
++-rm -rf conftest.dSYM
++-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
++-fi
++-
++-
++-{ $as_echo "$as_me:$LINENO: result: done" >&5
++-$as_echo "done" >&6; }
++-if test "x$CONF_SNPRINTF_TYPE" = "x" ; then
++-  { $as_echo "$as_me:$LINENO: WARNING: your operating system doesn't implement snprintf" >&5
++-$as_echo "$as_me: WARNING: your operating system doesn't implement snprintf" >&2;}
++-else
++-
++ cat >>confdefs.h <<_ACEOF
++-#define CONF_SNPRINTF_TYPE $CONF_SNPRINTF_TYPE
++-_ACEOF
++-
++-fi
++-
++-{ $as_echo "$as_me:$LINENO: checking whether you already have a standard SHA1 implementation" >&5
++-$as_echo_n "checking whether you already have a standard SHA1 implementation... " >&6; }
++-if test "$cross_compiling" = yes; then
++-  { { $as_echo "$as_me:$LINENO: error: cannot run test program while cross compiling
++-See \`config.log' for more details." >&5
++-$as_echo "$as_me: error: cannot run test program while cross compiling
++-See \`config.log' for more details." >&2;}
++-   { (exit 1); exit 1; }; }
++-else
++-  cat >conftest.$ac_ext <<_ACEOF
++-/* confdefs.h.  */
++-_ACEOF
++-cat confdefs.h >>conftest.$ac_ext
++-cat >>conftest.$ac_ext <<_ACEOF
++-/* end confdefs.h.  */
++-
++-#include <stdio.h>
++-#include <string.h>
++-#include <sys/types.h>
++-#include <sha1.h>
++-
++-int main(void)
++-{
++-    SHA1_CTX ctx;
++-    char b[41];
++-
++-    SHA1Init(&ctx);
++-    SHA1Update(&ctx, (const unsigned char *) "test", 4U);
++-    SHA1End(&ctx, b);
++-    b[40] = 0;
++-
++-    return strcasecmp(b, "a94a8fe5ccb19ba61c4c0873d391e987982fbbd3");
++-}
++-
++-_ACEOF
++-rm -f conftest$ac_exeext
++-if { (ac_try="$ac_link"
++-case "(($ac_try" in
++-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++-  *) ac_try_echo=$ac_try;;
++-esac
++-eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++-$as_echo "$ac_try_echo") >&5
++-  (eval "$ac_link") 2>&5
++-  ac_status=$?
++-  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++-  (exit $ac_status); } && { ac_try='./conftest$ac_exeext'
++-  { (case "(($ac_try" in
++-  *\"* | *\`* | *\\*) ac_try_echo=\$ac_try;;
++-  *) ac_try_echo=$ac_try;;
++-esac
++-eval ac_try_echo="\"\$as_me:$LINENO: $ac_try_echo\""
++-$as_echo "$ac_try_echo") >&5
++-  (eval "$ac_try") 2>&5
++-  ac_status=$?
++-  $as_echo "$as_me:$LINENO: \$? = $ac_status" >&5
++-  (exit $ac_status); }; }; then
++-
++-{ $as_echo "$as_me:$LINENO: result: yes" >&5
++-$as_echo "yes" >&6; }
++-
++-cat >>confdefs.h <<\_ACEOF
++-#define USE_SYSTEM_CRYPT_SHA1 /**/
+++#define CONF_SNPRINTF_TYPE 1
++ _ACEOF
++ 
++ 
++-else
++-  $as_echo "$as_me: program exited with status $ac_status" >&5
++-$as_echo "$as_me: failed program was:" >&5
++-sed 's/^/| /' conftest.$ac_ext >&5
++-
++-( exit $ac_status )
++-{ $as_echo "$as_me:$LINENO: result: no" >&5
++-$as_echo "no" >&6; }
++-
++-fi
++-rm -rf conftest.dSYM
++-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
++-fi
++-
++-
++ 
++ { $as_echo "$as_me:$LINENO: checking whether syslog names are available" >&5
++ $as_echo_n "checking whether syslog names are available... " >&6; }

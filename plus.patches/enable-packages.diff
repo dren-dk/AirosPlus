@@ -1,0 +1,19 @@
+--- clean.SDK.UBNT.v5.5/openwrt/.config	2012-07-25 14:18:37.000000000 +0200
++++ working.SDK.UBNT.v5.5/openwrt/.config	2012-08-13 21:53:47.898921389 +0200
+@@ -1393,3 +1393,16 @@
+ # Boot Loaders
+ #
+ # CONFIG_PACKAGE_kmod-ubnt-poe-control is not set
++
++
++
++
++
++# Turn on Quaggas ospfd
++CONFIG_PACKAGE_quagga-unstable=y
++CONFIG_PACKAGE_quagga-unstable-libospf=y
++CONFIG_PACKAGE_quagga-unstable-libzebra=y
++CONFIG_PACKAGE_quagga-unstable-ospfd=y
++# Turn on UCARP
++CONFIG_PACKAGE_ucarp=y
++

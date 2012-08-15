@@ -1,0 +1,16 @@
+--- working.SDK.UBNT.v5.5/openwrt/package/quagga-unstable/files/quagga.orig	2012-08-13 22:00:06.900156951 +0200
++++ working.SDK.UBNT.v5.5/openwrt/package/quagga-unstable/files/quagga	2012-08-13 22:27:33.169704862 +0200
+@@ -25,10 +25,10 @@
+ shift
+ ARG_DAEMONS=$*
+ BINDIR=/usr/sbin
+-CONFDIR=/etc/quagga
++CONFDIR=/etc/persistent
+ STATEDIR=/var/run/quagga
+-RUNUSER=network
+-RUNGROUP=$RUNUSER
++RUNUSER=ubnt
++RUNGROUP=admin
+ DAEMONS="zebra ripd ripngd ospfd ospf6d bgpd"
+ DAEMON_FLAGS=-d
+ WATCHQUAGGA_FLAGS="-d -z -T 60 -R"

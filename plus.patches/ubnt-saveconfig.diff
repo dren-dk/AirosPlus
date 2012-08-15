@@ -1,0 +1,6 @@
+--- /dev/null	2010-02-12 16:01:54.014117675 +0100
++++ SDK.UBNT.v5.1/openwrt/package/ubnt-base-files/files/usr/bin/saveconfig	2010-02-13 16:07:45.000000000 +0100
+@@ -0,0 +1,3 @@
++#!/bin/sh
++
++cfgmtd -w -p /etc/

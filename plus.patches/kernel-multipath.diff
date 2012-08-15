@@ -1,0 +1,14 @@
+--- clean.SDK.UBNT.v5.1/openwrt/target/linux/ar71xx/config-2.6.15	2010-01-07 16:14:51.000000000 +0100
++++ SDK.UBNT.v5.1/openwrt/target/linux/ar71xx/config-2.6.15	2010-02-10 19:21:03.000000000 +0100
+@@ -260,7 +260,10 @@
+ # CONFIG_IP_FIB_TRIE is not set
+ CONFIG_IP_FIB_HASH=y
+ # CONFIG_IP_MULTIPLE_TABLES is not set
+-# CONFIG_IP_ROUTE_MULTIPATH is not set
++
++CONFIG_IP_ROUTE_MULTIPATH=y
++# CONFIG_IP_ROUTE_MULTIPATH_CACHED is not set
++
+ # CONFIG_IP_ROUTE_VERBOSE is not set
+ # CONFIG_IP_PNP is not set
+ # CONFIG_NET_IPIP is not set

@@ -1,0 +1,294 @@
+diff -urN clean.SDK.UBNT.v5.1/openwrt/package/bird/files/bird4.conf SDK.UBNT.v5.1/openwrt/package/bird/files/bird4.conf
+--- clean.SDK.UBNT.v5.1/openwrt/package/bird/files/bird4.conf	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v5.1/openwrt/package/bird/files/bird4.conf	2010-02-13 16:20:33.000000000 +0100
+@@ -0,0 +1,72 @@
++# See: http://bird.network.cz/ for documentation
++# On AirOS put the file in /etc/persistent and run saveconfig
++
++log syslog all;
++#debug protocols all;
++
++protocol direct {
++       interface "*";
++}
++
++protocol kernel {
++#  learn;
++  persist;
++  scan time 2;
++#  import none;
++#  export all;
++}
++
++protocol device {
++  scan time 1;
++}
++
++protocol static {
++  export all;
++
++  route 10.102.16.0/20  via 10.102.0.1;
++  route 10.102.32.0/20 via 10.102.0.2;
++  route 10.102.48.0/20 via 10.102.0.3;
++  route 10.102.64.0/20 via 10.102.0.4;
++  route 10.102.80.0/20 via 10.102.0.5;
++
++  route 10.104.0.0/16  via 10.102.0.1;
++
++  route 10.105.0.0/16  via 10.102.0.2;
++}
++
++protocol ospf {
++  import all;
++  export all;
++
++  area 0 {
++
++    networks {
++      10.100.0.0/16;
++      10.102.0.0/24;
++      10.103.0.0/24;
++      10.104.0.0/24;
++      10.105.0.0/24;
++    };
++
++    interface "eth0" {
++      cost 10;
++      hello 1;
++      retransmit 2;
++      wait 5;
++      dead 10;
++      password "love";
++      authentication simple;
++    };
++
++    interface "ath0" {
++      cost 50;
++      hello 1;
++      retransmit 2;
++      wait 5;
++      dead 10;
++      password "love";
++      authentication simple;
++    };
++
++  };
++}
+diff -urN clean.SDK.UBNT.v5.1/openwrt/package/bird/files/bird4.init SDK.UBNT.v5.1/openwrt/package/bird/files/bird4.init
+--- clean.SDK.UBNT.v5.1/openwrt/package/bird/files/bird4.init	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v5.1/openwrt/package/bird/files/bird4.init	2010-02-13 15:58:42.000000000 +0100
+@@ -0,0 +1,36 @@
++#!/bin/sh
++
++CONF=/etc/persistent/bird4.conf
++MODE="$1"
++
++if [ "${MODE}" = "stop" ]
++then
++    echo "Killing them all and letting init sort them out"
++    killall bird4
++    exit 0
++fi
++
++if [ -f "${CONF}" ]
++then
++   
++   if [ "${MODE}" = "test" ]
++   then
++       daemon="-d"
++   else
++       echo "Starting BIRD using ${CONF} as a daemon, use test parameter to run in foreground"
++       daemon=""
++   fi
++
++   /usr/bin/bird4 ${daemon}
++
++   if [ "${MODE}" = "test" ]
++   then
++       echo "BIRD has exited."
++   else
++       echo "BIRD has been started."
++   fi
++
++else 
++   echo "BIRD is not enabled"
++   exit 0
++fi
+diff -urN clean.SDK.UBNT.v5.1/openwrt/package/bird/Makefile SDK.UBNT.v5.1/openwrt/package/bird/Makefile
+--- clean.SDK.UBNT.v5.1/openwrt/package/bird/Makefile	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v5.1/openwrt/package/bird/Makefile	2010-02-13 16:15:59.000000000 +0100
+@@ -0,0 +1,150 @@
++# 
++# Copyright (C) 2009 OpenWrt.org
++#
++# This is free software, licensed under the GNU General Public License v2.
++# See /LICENSE for more information.
++#
++# This openwrt port is a slightly updated version of:
++# http://www.mulaz.org/hacks/openwrt-bird/
++#
++# I have updated it for use with BIRD 1.2.1 and AirOS
++# For updates see: http://dren.dk/airos-plus.html
++#
++
++include $(TOPDIR)/rules.mk
++
++PKG_NAME:=bird
++PKG_VERSION:=1.2.1
++PKG_RELEASE:=1
++
++PKG_SOURCE:=bird-$(PKG_VERSION).tar.gz
++PKG_SOURCE_URL:=ftp://bird.network.cz/pub/bird
++PKG_MD5SUM:=e158bd0a72e345841e39764975ee1d21
++PKG_BUILD_DEPENDS:=libncurses libreadline
++
++include $(INCLUDE_DIR)/package.mk
++
++define Package/bird/Default
++	SECTION:=net
++	CATEGORY:=Network
++	TITLE:=The BIRD Internet Routing Daemon
++	URL:=http://bird.network.cz/
++endef
++
++define Package/birdc/Default
++  SECTION:=net
++  CATEGORY:=Network
++  TITLE:=The BIRD command-line client
++  URL:=http://bird.network.cz/
++  DEPENDS:= +libreadline +libncurses
++endef
++
++define Package/bird/Default/description1
++BIRD is an internet routing daemon which manages TCP/IP routing tables
++with support of modern routing protocols, easy to use configuration
++interface and powerful route filtering language.
++
++endef
++
++define Package/bird/Default/description2
++In BGP, BIRD supports communities, multiprotocol extensions, MD5
++authentication, 32bit AS numbers and could act as a route server or a
++route reflector. BIRD also supports multiple RIBs, multiple kernel
++routing tables and redistribution between the protocols with a powerful
++configuration syntax.
++
++endef
++
++define Package/bird/Default/description3
++This is a BIRD command-line client. It is used to send commands to BIRD,
++commands can perform simple actions such as enabling/disabling of
++protocols, telling BIRD to show various information, telling it to show
++routing table filtered by filter, or asking BIRD to reconfigure.
++
++Unless you cant afford dependency on ncurses and readline, you
++should install BIRD command-line client together with BIRD.
++
++endef
++
++define Package/bird4
++$(call Package/bird/Default)
++  TITLE+= (IPv4)
++endef
++
++define Package/birdc4
++$(call Package/birdc/Default)
++  TITLE+= (IPv4)
++  DEPENDS+= +bird4
++endef
++
++define Package/bird6
++$(call Package/bird/Default)
++  TITLE+= (IPv6)
++endef
++
++define Package/birdc6
++$(call Package/birdc/Default)
++  TITLE+= (IPv6)
++  DEPENDS+= +bird6
++endef
++
++define Package/bird4/description
++$(call Package/bird/Default/description1)
++This is IPv4 version of BIRD, it supports OSPFv2, RIPv2 and BGP
++protocols.
++
++$(call Package/bird/Default/description2)
++endef
++
++define Package/birdc4/description
++$(call Package/bird/Default/description1)
++$(call Package/bird/Default/description3)
++endef
++
++define Package/bird6/description
++$(call Package/bird/Default/description1)
++This is IPv6 version of BIRD, it supports RIPng and BGP protocols.
++Sorry, OSPFv3 is not yet supported.
++
++$(call Package/bird/Default/description2)
++endef
++
++define Package/birdc6/description
++$(call Package/bird/Default/description1)
++$(call Package/bird/Default/description3)
++endef
++
++CONFIGURE_ARGS += --with-linux-headers="$(LINUX_DIR)" --sysconfdir=/etc/persistent --with-ospf
++
++define Build/Template
++
++$(STAMP_BUILT)-$(2): $(STAMP_PREPARED)
++	$(call Build/Configure/Default,$(3))
++	$(call Build/Compile/Default,)
++	( cd $(PKG_BUILD_DIR); mv -f bird bird$(2); mv -f birdc birdc$(2) )
++	-$(MAKE) -C $(PKG_BUILD_DIR) clean
++	touch $$@
++
++$(STAMP_BUILT): $(STAMP_BUILT)-$(2)
++
++define Package/bird$(2)/install
++	$(INSTALL_DIR)  $$(1)/usr/sbin
++	$(INSTALL_BIN)  $$(PKG_BUILD_DIR)/bird$(2) $$(1)/usr/sbin/
++	$(INSTALL_BIN)  ./files/bird$(2).init $$(1)/usr/sbin/
++endef
++
++define Package/birdc$(2)/install
++	$(INSTALL_DIR) $$(1)/usr/sbin
++	$(INSTALL_BIN) $$(PKG_BUILD_DIR)/birdc$(2) $$(1)/usr/sbin/
++endef
++
++endef
++
++
++$(eval	$(call Build/Template,bird4,4, --disable-ipv6))
++$(eval	$(call Build/Template,bird6,6, --enable-ipv6))
++
++$(eval $(call BuildPackage,bird4))
++$(eval $(call BuildPackage,birdc4))
++$(eval $(call BuildPackage,bird6))
++$(eval $(call BuildPackage,birdc6))
+diff -urN clean.SDK.UBNT.v5.1/openwrt/package/bird/patches/0001-change_config_name.patch SDK.UBNT.v5.1/openwrt/package/bird/patches/0001-change_config_name.patch
+--- clean.SDK.UBNT.v5.1/openwrt/package/bird/patches/0001-change_config_name.patch	1970-01-01 01:00:00.000000000 +0100
++++ SDK.UBNT.v5.1/openwrt/package/bird/patches/0001-change_config_name.patch	2009-12-06 23:46:34.000000000 +0100
+@@ -0,0 +1,20 @@
++diff --git a/sysdep/config.h b/sysdep/config.h
++index 03399bd..bc5eb77 100644
++--- a/sysdep/config.h
+++++ b/sysdep/config.h
++@@ -46,11 +46,11 @@ typedef u16 word;
++ #  endif
++ #else
++ #  ifdef DEBUGGING
++-#    define PATH_CONFIG "bird.conf"
++-#    define PATH_CONTROL_SOCKET "bird.ctl"
+++#    define PATH_CONFIG "bird4.conf"
+++#    define PATH_CONTROL_SOCKET "bird4.ctl"
++ #  else
++-#    define PATH_CONFIG PATH_CONFIG_DIR "/bird.conf"
++-#    define PATH_CONTROL_SOCKET PATH_CONTROL_SOCKET_DIR "/bird.ctl"
+++#    define PATH_CONFIG PATH_CONFIG_DIR "/bird4.conf"
+++#    define PATH_CONTROL_SOCKET PATH_CONTROL_SOCKET_DIR "/bird4.ctl"
++ #  endif
++ #endif
++ 

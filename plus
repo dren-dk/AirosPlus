@@ -1,0 +1,175 @@
+#!/usr/bin/perl
+use strict;
+use warnings;
+use File::Copy;
+use FindBin qw($Bin $Script);
+
+print "See: http://dren.dk/airos-plus.html for documentation.\n";
+
+# This script will automatically download and patch the AirOS
+# firmware to include Quagga (Specifically OSPFd) and ucarp
+
+# The script will take a while to run, some typical times,
+# excluding downloading are:
+# Atom 330 duo     @ 1.60 GHz: 86 minutes
+# Core 2 Duo P8400 @ 2.26 GHz: 28 minutes
+# Core 2 Duo E8200 @ 2.66 GHz: 26 minutes
+# Xeon X5450       @ 3.00 GHz: 19 minutes
+
+# My version number:
+my $VERSION = 'XM.v5.5.plus-2012-08-13';
+
+# The SDK details:
+my $FN      = "SDK.UBNT.v5.5.tar.bz2";
+my $URL     = "http://www.ubnt.com/downloads/firmwares/XN-fw/v5.5/$FN";
+my $SHA1    = '8c9a16f5bd102a1b9510cf80d0c1f08af90430f0';
+my $DIR     = 'SDK.UBNT.v5.5';
+
+# The revision of quagga to check out of the openwrt repository.
+#my $QUAGGA_REVISION = 26362;
+my $QUAGGA_REVISION = 33175;
+
+
+my @PACKAGES = qw(bash make gcc quilt bison flex autoconf libtool libncurses5-dev subversion wget g++ gawk zlib1g-dev cvs unzip yui-compressor);
+
+sub dieuse {
+    print @_, "
+$Script get         : To download $URL
+$Script <filename>  : To use an already downloaded copy of $FN
+";
+    exit 1;
+}
+
+my $sdk;
+if (-f "$Bin/$FN") {
+    print STDERR "Using $FN in current dir\n";
+    $sdk = "$Bin/$FN";
+
+} else {
+    
+    ($sdk) = @ARGV or dieuse("The SDK is not available, please use either:");
+    if ($sdk eq 'get') {
+	print STDERR "Downloading $URL to curent dir\n";
+	system("wget", '-O', "$Bin/$FN", $URL) and 
+	    die "Failed to download $URL to $Bin/$FN";
+	$sdk = "$Bin/$FN";
+
+    } elsif (!-f $sdk) {
+	dieuse("The SDK file doesn't exist: $sdk");
+    }
+}
+
+
+{ # apt-get magic...
+    print STDERR "Checking that all needed OS packages are installed...";
+    my %packages;
+    for my $p (split /\n/, `dpkg -l`) {
+	next unless $p =~ /^ii\s+(\S+)/;
+	$packages{$1}++;
+    }
+    
+    my @missing = grep {!$packages{$_}} @PACKAGES;
+    if (@missing) {
+	print STDERR "Error: Missing: ".join(", ", @missing)." Trying to install\n";
+	system("sudo", "apt-get", "install", @missing)
+	    and die "Failed while trying to install missing packages, please run this command manually
+".join(' ', "sudo", "apt-get", "install", @missing)."
+Then rerun this script\n";
+    }
+    print STDERR " Ok\n";
+}
+
+
+{
+    print STDERR "Verifying checksum of $sdk...";
+    my $sha1 = `sha1sum "$sdk"` or die qq'Failed to run sha1sum "$sdk"';
+    $sha1 =~ s/\s.+$//s;
+    die "Error checksums differ: $sha1 should have been $SHA1"
+	unless $sha1 eq $SHA1;
+    print STDERR " Ok\n";
+}
+
+print STDERR "Extracting $sdk to $Bin...";
+chdir $Bin;
+system("tar", "xf", $sdk)
+    and die "Failed to unroll the tarball";
+print STDERR " Ok\n";
+
+
+print STDERR "Getting rid of useless crap...";
+chdir "$Bin/$DIR" or die "URgh!";
+system("find -name .svn | xargs rm -r")
+    and die "Hmm, didn't work";
+system("rm openwrt/scripts/config/*.o openwrt/scripts/config/conf")
+    and warn "Hmm, didn't work, trying to continue...\n";
+print STDERR " Ok\n";
+
+
+# Do the work needed for Quagga
+print STDERR "Checking out Quagga...";
+chdir "$Bin/$DIR/openwrt/package" or die "Urgh!";
+system('svn', 'co', '-q', '-r', $QUAGGA_REVISION, 'svn://svn.openwrt.org/openwrt/packages/net/quagga', 'quagga-unstable')
+    and die "Failed to check out quagga in svn revision $QUAGGA_REVISION";
+print STDERR " Ok\n";
+
+if (0) {
+    chdir "$Bin/$DIR/openwrt/package";
+    system('svn', 'co', '-q', 'svn+ssh://dren.dk/ucarp')
+	and die "Failed to check out ucarp, did Flemming fuck up?";
+
+    # The patch was created with:
+    # diff -urNx .svn clean-SDK.UBNT.v5.1/openwrt/package/ucarp SDK.UBNT.v5.1/openwrt/package/ucarp > airos-plus-5.1.patches/ucarp.diff
+}
+
+
+print STDERR "Applying patches...";
+chdir "$Bin/$DIR";
+opendir PD, "$Bin/$Script.patches" or die "Failed to open patch dir: $!";
+for my $p (grep {/\.diff$/} readdir PD) {
+    print STDERR " $p\n";
+    system("patch -s -p 1 < $Bin/$Script.patches/$p")
+	and die "Failed to apply patch: $Script.patches/$p";
+}
+closedir PD;
+print STDERR " Ok\n";
+
+system("chmod", 'a+x', "$Bin/$DIR/openwrt/package/ubnt-base-files/files/usr/bin/saveconfig");
+
+print STDERR "Appending version to openwrt config...";
+open C, ">>$Bin/$DIR/openwrt/.config" or die "Unable to append to .config: $!";
+print C qq'
+CONFIG_UBNT_FIRMWARE_VERSION="$VERSION"
+';
+close C;
+print STDERR " Ok\n";
+
+my $cpus = `grep -c '^processor' /proc/cpuinfo`;
+chomp $cpus;
+$cpus++;
+
+print STDERR "Building on $cpus cpus, examine $Bin/build.log for details...";
+chdir "$Bin/$DIR/openwrt" or die "wtf?";
+system("nice -20 make -j $cpus V=99 > $Bin/build.log 2>&1")
+    and die "Failed while building, see build.log";
+print STDERR " Ok\n";
+
+
+my $od = "$Bin/$DIR/openwrt/bin";
+print STDERR "Looking for the output image in $od\n";
+my $img;
+opendir OD, $od or die "Failed to open output directory $od: $!";
+for my $i (sort readdir OD) {
+    if ($i =~ /^XM\.(5\..+)\.bin$/) {
+	print STDERR "  Found: $i\n";
+	$img = $1;
+    }
+}
+closedir OD;
+
+move("$od/XM.$img.bin", "$Bin/XM.$img.bin")
+    or die "Failed to rename the image to match the actual version number";
+print STDERR "Renamed newest output image to: XM.$img.bin\n";
+
+print "See: http://dren.dk/airos-plus.html for documentation.\n";
+
+exit 0;
