@@ -5,7 +5,7 @@
  fi
  
 +/usr/bin/ucarp.init ${cmd}
-+/usr/bin/bird.init ${cmd}
++/usr/bin/bird4.init ${cmd}
 +
  case "$cmd" in
  	start)

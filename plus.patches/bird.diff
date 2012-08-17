@@ -259,7 +259,7 @@ diff -ru post-svn.SDK.UBNT.v5.5/openwrt/package/bird/Makefile SDK.UBNT.v5.5/open
 -	$(INSTALL_DIR)  $$(1)/etc/init.d
 -	$(INSTALL_BIN)  ./files/bird$(2).init $$(1)/etc/init.d/bird$(2)
 +	$(INSTALL_DIR)  $$(1)/usr/bin
-+	$(INSTALL_BIN)  ./files/bird$(2).init $$(1)/usr/bin/bird$(2)
++	$(INSTALL_BIN)  ./files/bird$(2).init $$(1)/usr/bin/bird$(2).init
  
  endef
  
