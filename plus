@@ -17,7 +17,7 @@ print "See: http://dren.dk/airos-plus.html for documentation.\n";
 # Xeon X5450       @ 3.00 GHz: 19 minutes
 
 # My version number:
-my $VERSION = 'XM.v5.5.plus-2012-08-13';
+my $VERSION = 'XM.ar7240.v5.5.plus-2012-08-17';
 
 # The SDK details:
 my $FN      = "SDK.UBNT.v5.5.tar.bz2";
@@ -26,9 +26,9 @@ my $SHA1    = '8c9a16f5bd102a1b9510cf80d0c1f08af90430f0';
 my $DIR     = 'SDK.UBNT.v5.5';
 
 # The revision of quagga to check out of the openwrt repository.
-#my $QUAGGA_REVISION = 26362;
 my $QUAGGA_REVISION = 33175;
-
+my $BIRD_REVISION = $QUAGGA_REVISION;
+my $UCARP_REVISION = $QUAGGA_REVISION;
 
 my @PACKAGES = qw(bash make gcc quilt bison flex autoconf libtool libncurses5-dev subversion wget g++ gawk zlib1g-dev cvs unzip yui-compressor);
 
@@ -96,37 +96,36 @@ system("tar", "xf", $sdk)
 print STDERR " Ok\n";
 
 
-print STDERR "Getting rid of useless crap...";
-chdir "$Bin/$DIR" or die "URgh!";
+print STDERR "Getting rid of useless .svn crap...";
+chdir "$Bin/$DIR" or die "Urgh!";
 system("find -name .svn | xargs rm -r")
     and die "Hmm, didn't work";
-system("rm openwrt/scripts/config/*.o openwrt/scripts/config/conf")
-    and warn "Hmm, didn't work, trying to continue...\n";
 print STDERR " Ok\n";
 
-
-# Do the work needed for Quagga
-print STDERR "Checking out Quagga...";
 chdir "$Bin/$DIR/openwrt/package" or die "Urgh!";
-system('svn', 'co', '-q', '-r', $QUAGGA_REVISION, 'svn://svn.openwrt.org/openwrt/packages/net/quagga', 'quagga-unstable')
-    and die "Failed to check out quagga in svn revision $QUAGGA_REVISION";
+
+
+#print STDERR "Checking out Quagga...";
+#system('svn', 'export', '-q', '-r', $QUAGGA_REVISION, 'svn://svn.openwrt.org/openwrt/packages/net/quagga', 'quagga')
+#    and die "Failed to check out quagga in svn revision $QUAGGA_REVISION";
+#print STDERR " Ok\n";
+
+print STDERR "Checking out BIRD...";
+system('svn', 'export', '-q', '-r', $BIRD_REVISION, 'svn://svn.openwrt.org/openwrt/packages/net/bird', 'bird')
+    and die "Failed to check out BIRD in svn revision $BIRD_REVISION";
 print STDERR " Ok\n";
 
-if (0) {
-    chdir "$Bin/$DIR/openwrt/package";
-    system('svn', 'co', '-q', 'svn+ssh://dren.dk/ucarp')
-	and die "Failed to check out ucarp, did Flemming fuck up?";
-
-    # The patch was created with:
-    # diff -urNx .svn clean-SDK.UBNT.v5.1/openwrt/package/ucarp SDK.UBNT.v5.1/openwrt/package/ucarp > airos-plus-5.1.patches/ucarp.diff
-}
-
+print STDERR "Checking out UCARP...";
+system('svn', 'export', '-q', '-r', $UCARP_REVISION, 'svn://svn.openwrt.org/openwrt/packages/net/ucarp', 'ucarp')
+    and die "Failed to check out UCARP in svn revision $UCARP_REVISION";
+print STDERR " Ok\n";
 
 print STDERR "Applying patches...";
 chdir "$Bin/$DIR";
 opendir PD, "$Bin/$Script.patches" or die "Failed to open patch dir: $!";
 for my $p (grep {/\.diff$/} readdir PD) {
-    print STDERR " $p\n";
+#    print STDERR " $p\n";
+    print STDERR ".";
     system("patch -s -p 1 < $Bin/$Script.patches/$p")
 	and die "Failed to apply patch: $Script.patches/$p";
 }
@@ -143,13 +142,9 @@ CONFIG_UBNT_FIRMWARE_VERSION="$VERSION"
 close C;
 print STDERR " Ok\n";
 
-my $cpus = `grep -c '^processor' /proc/cpuinfo`;
-chomp $cpus;
-$cpus++;
-
-print STDERR "Building on $cpus cpus, examine $Bin/build.log for details...";
+print STDERR "Building, examine $Bin/build.log for details...";
 chdir "$Bin/$DIR/openwrt" or die "wtf?";
-system("nice -20 make -j $cpus V=99 > $Bin/build.log 2>&1")
+system("nice -20 make V=99 > $Bin/build.log 2>&1")
     and die "Failed while building, see build.log";
 print STDERR " Ok\n";
 
@@ -165,6 +160,8 @@ for my $i (sort readdir OD) {
     }
 }
 closedir OD;
+
+die "Failed to find the output binary in $DIR/openwrt/bin" unless $img;
 
 move("$od/XM.$img.bin", "$Bin/XM.$img.bin")
     or die "Failed to rename the image to match the actual version number";
