@@ -1,0 +1,21 @@
+diff -ru clean.SDK.UBNT.v5.5/openwrt/package/ubnt-base-files/files/init SDK.UBNT.v5.5/openwrt/package/ubnt-base-files/files/init
+--- clean.SDK.UBNT.v5.5/openwrt/package/ubnt-base-files/files/init	2012-07-24 14:14:03.000000000 +0200
++++ SDK.UBNT.v5.5/openwrt/package/ubnt-base-files/files/init	2012-08-18 16:29:34.412585807 +0200
+@@ -182,6 +182,14 @@
+ 	echo "ubntconf returned $?" >> /tmp/ubntconf.log
+ fi
+ 
++if [ -e /etc/persistent/ucarp.conf ]; then
++    echo "null::respawn:/usr/bin/ucarp.init test" >> /etc/inittab
++fi 
++
++if [ -e /etc/persistent/bird4.conf ]; then
++    echo "null::respawn:/usr/bin/bird4.init test" >> /etc/inittab
++fi 
++
+ echo "...running /sbin/init"
+ exec /sbin/init
+ 
+Only in SDK.UBNT.v5.5/openwrt/package/ubnt-base-files/files: init~
+Only in SDK.UBNT.v5.5/openwrt/package/ubnt-base-files/files/usr: bin
+Only in SDK.UBNT.v5.5/openwrt/package/ubnt-base-files/files/usr/etc/rc.d: rc~

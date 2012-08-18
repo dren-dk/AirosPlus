@@ -154,7 +154,7 @@ print STDERR "Looking for the output image in $od\n";
 my $img;
 opendir OD, $od or die "Failed to open output directory $od: $!";
 for my $i (sort readdir OD) {
-    if ($i =~ /^XM\.(5\..+)\.bin$/) {
+    if ($i =~ /^XM\.(v5\..+)\.bin$/) {
 	print STDERR "  Found: $i\n";
 	$img = $1;
     }
