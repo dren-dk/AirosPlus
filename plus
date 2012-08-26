@@ -21,7 +21,10 @@ my $VERSION = 'XM.ar7240.v5.5.plus-2012-08-17';
 
 # The SDK details:
 my $FN      = "SDK.UBNT.v5.5.tar.bz2";
-my $URL     = "http://www.ubnt.com/downloads/firmwares/XN-fw/v5.5/$FN";
+my $DLPATH  =  "/downloads/firmwares/XN-fw/v5.5/$FN";
+#my $URL     = "http://www.ubnt.com$DLPATH";
+my $URL     = "http://dl.ubnt.com/firmwares/XN-fw/v5.5/$FN";
+my $FB_URL  = "http://dren.dk/dl/$FN";
 my $SHA1    = '8c9a16f5bd102a1b9510cf80d0c1f08af90430f0';
 my $DIR     = 'SDK.UBNT.v5.5';
 
@@ -50,8 +53,14 @@ if (-f "$Bin/$FN") {
     ($sdk) = @ARGV or dieuse("The SDK is not available, please use either:");
     if ($sdk eq 'get') {
 	print STDERR "Downloading $URL to curent dir\n";
-	system("wget", '-O', "$Bin/$FN", $URL) and 
-	    die "Failed to download $URL to $Bin/$FN";
+
+	system("wget", '-O', "$Bin/$FN", "--referer=http://www.ubnt.com/eula_sdk/?BACK=$DLPATH", $URL) and die "fail";
+
+	if ((stat "$Bin/$FN")[7] < 1000000) { 
+	    # UBNT fucked with their downloads again, so just get it from my own server:
+	    system("wget", '-O', "$Bin/$FN", $FB_URL) and 
+	        die "Failed to download $URL or $FB_URL to $Bin/$FN";
+	}
 	$sdk = "$Bin/$FN";
 
     } elsif (!-f $sdk) {
