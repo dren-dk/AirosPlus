@@ -1,11 +1,11 @@
-diff -ru post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.conf SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.conf
---- post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.conf	2012-08-17 17:00:22.584222180 +0200
-+++ SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.conf	2012-08-17 17:09:37.990289875 +0200
+diff -ru clean.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.conf SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.conf
+--- clean.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.conf	2010-03-06 18:03:32.112497000 +0100
++++ SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.conf	2012-08-27 21:41:22.905837684 +0200
 @@ -1,8 +1,13 @@
 +# Usage for AirOS: 
 +# 1) Edit this file and copy it to /etc/persistent/ucarp.conf
 +# 2) Test: ucarp.init test
-+# 3) When it works run: cfgmtd -w -p /etc/ && reboot
++# 3) When it works run: saveconfig
 +
  # Run in background
  BACKGROUND=1
@@ -16,11 +16,20 @@ diff -ru post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.conf SDK.UBNT.
  
  # Virtual IP shared with the other system
  VIP=10.0.0.117
+@@ -20,3 +25,7 @@
+ # you should list all known systems, those not listed can
+ # take up to a minute to notice the change.
+ PINGIP="10.0.0.1 10.0.0.20"
++
++# Set this instance to be the preferred master or an explicit backup:
++# ROLE=master
++# ROLE=backup
+\ No newline at end of file
 Only in SDK.UBNT.v5.5/openwrt/package/ucarp/files: ucarp.conf~
-diff -ru post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init
---- post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init	2012-08-17 17:00:22.584222180 +0200
-+++ SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init	2012-08-17 17:08:55.766133477 +0200
-@@ -1,43 +1,64 @@
+diff -ru clean.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init
+--- clean.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init	2010-05-17 22:05:32.755048000 +0200
++++ SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init	2012-08-27 21:36:25.944930574 +0200
+@@ -1,43 +1,74 @@
 -#!/bin/sh /etc/rc.common
 -
 -START=50
@@ -56,6 +65,16 @@ diff -ru post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init SDK.UBNT.
 +   fi
 +
 +   . ${CONF}
++
++   master = ""
++   if [ "${ROLE}" = "master" ]
++   then
++       master="--advbase=1 --advskew=0 --preempt"
++   fi
++
++   if [ "${ROLE}" = "backup" ]
++       master="--advbase=5 --advskew=10"
++   fi
 +   
 +   cat > /var/run/ucarp-vip-up <<EOF
  #!/bin/sh
@@ -91,7 +110,7 @@ diff -ru post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init SDK.UBNT.
 +   chmod a+x /var/run/ucarp-vip-down
 +
 +   /sbin/ucarp --interface=${IF} --srcip=${MYIP} --vhid=1 --pass=${PASSWORD} \
-+         --addr=${VIP} --nomcast $daemon \
++         --addr=${VIP} --nomcast $daemon $master \
 +         --upscript=/var/run/ucarp-vip-up --downscript=/var/run/ucarp-vip-down
 +
 +   if [ "${MODE}" = "test" ]
@@ -115,9 +134,9 @@ diff -ru post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init SDK.UBNT.
 -	killall ucarp
 -}
 Only in SDK.UBNT.v5.5/openwrt/package/ucarp/files: ucarp.init~
-diff -ru post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/Makefile SDK.UBNT.v5.5/openwrt/package/ucarp/Makefile
---- post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/Makefile	2012-08-17 17:00:22.584222180 +0200
-+++ SDK.UBNT.v5.5/openwrt/package/ucarp/Makefile	2012-08-17 17:08:41.942082265 +0200
+diff -ru clean.SDK.UBNT.v5.5/openwrt/package/ucarp/Makefile SDK.UBNT.v5.5/openwrt/package/ucarp/Makefile
+--- clean.SDK.UBNT.v5.5/openwrt/package/ucarp/Makefile	2010-05-17 22:05:32.755048000 +0200
++++ SDK.UBNT.v5.5/openwrt/package/ucarp/Makefile	2012-08-25 21:23:07.113832199 +0200
 @@ -40,8 +40,8 @@
  define Package/ucarp/install
  	$(INSTALL_DIR) $(1)/etc
@@ -129,4 +148,3 @@ diff -ru post-svn.SDK.UBNT.v5.5/openwrt/package/ucarp/Makefile SDK.UBNT.v5.5/ope
  	$(INSTALL_DIR) $(1)/usr/sbin
  	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/usr/sbin/ucarp $(1)/usr/sbin/
  endef
-Only in SDK.UBNT.v5.5/openwrt/package/ucarp: Makefile~
