@@ -29,7 +29,7 @@ Only in SDK.UBNT.v5.5/openwrt/package/ucarp/files: ucarp.conf~
 diff -ru clean.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init
 --- clean.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init	2010-05-17 22:05:32.755048000 +0200
 +++ SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init	2012-08-27 21:36:25.944930574 +0200
-@@ -1,43 +1,74 @@
+@@ -1,43 +1,75 @@
 -#!/bin/sh /etc/rc.common
 -
 -START=50
@@ -73,6 +73,7 @@ diff -ru clean.SDK.UBNT.v5.5/openwrt/package/ucarp/files/ucarp.init SDK.UBNT.v5.
 +   fi
 +
 +   if [ "${ROLE}" = "backup" ]
++   then
 +       master="--advbase=5 --advskew=10"
 +   fi
 +   

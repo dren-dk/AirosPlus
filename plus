@@ -17,7 +17,7 @@ print "See: http://dren.dk/airos-plus.html for documentation.\n";
 # Xeon X5450       @ 3.00 GHz: 19 minutes
 
 # My version number:
-my $VERSION = 'XM.ar7240.v5.5.plus-2012-08-17';
+my $VERSION = 'XM.ar7240.v5.5.plus-2012-08-31';
 
 # The SDK details:
 my $FN      = "SDK.UBNT.v5.5.tar.bz2";
@@ -172,9 +172,9 @@ closedir OD;
 
 die "Failed to find the output binary in $DIR/openwrt/bin" unless $img;
 
-move("$od/XM.$img.bin", "$Bin/XM.$img.bin")
+move("$od/XM.$img.bin", "$Bin/XM.ar7240.$img.bin")
     or die "Failed to rename the image to match the actual version number";
-print STDERR "Renamed newest output image to: XM.$img.bin\n";
+print STDERR "Renamed newest output image to: XM.ar7240.$img.bin\n";
 
 print "See: http://dren.dk/airos-plus.html for documentation.\n";
 
