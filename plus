@@ -54,9 +54,9 @@ if (-f "$Bin/$FN") {
     if ($sdk eq 'get') {
 	print STDERR "Downloading $URL to curent dir\n";
 
-	system("wget", '-O', "$Bin/$FN", "--referer=http://www.ubnt.com/eula_sdk/?BACK=$DLPATH", $URL) and die "fail";
+	system("wget", '-O', "$Bin/$FN", "--referer=http://www.ubnt.com/eula_sdk/?BACK=$DLPATH", $URL) and warn "fail";
 
-	if ((stat "$Bin/$FN")[7] < 1000000) { 
+	if (!-f "$Bin/$FN" or (stat "$Bin/$FN")[7] < 1000000) { 
 	    # UBNT fucked with their downloads again, so just get it from my own server:
 	    system("wget", '-O', "$Bin/$FN", $FB_URL) and 
 	        die "Failed to download $URL or $FB_URL to $Bin/$FN";
